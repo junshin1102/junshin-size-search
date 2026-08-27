@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>木材サイズ検索 | Junshin -潤森-</title>
+<style>
+body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;font-size:16px;color:#222;background:#fff}
+#wrap{max-width:980px;margin:0 auto;padding:10px}
+.jz-form{background:#f4f6f1;border:1px solid #d7ddd0;border-radius:10px;padding:16px;margin-bottom:14px}
+.jz-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.jz-field{display:flex;flex-direction:column;gap:4px}
+.jz-field label{font-size:12px;color:#444}
+input[type=number]{width:7em;padding:8px;border:1px solid #bbb;border-radius:6px;font-size:16px}
+select{padding:8px;border:1px solid #bbb;border-radius:6px;font-size:16px}
+.jz-btn{background:#2c4a2e;color:#fff;border:none;border-radius:6px;padding:10px 22px;font-size:16px;cursor:pointer}
+.jz-msg{background:#fff;border-left:4px solid #6b8c59;padding:10px 14px;margin:14px 0;line-height:1.7}
+.jz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.jz-card{border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;background:#fff;text-decoration:none;color:inherit;display:block}
+.jz-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eee}
+.jz-card .jz-body{padding:8px 10px}
+.jz-tag{display:inline-block;font-size:11px;border-radius:4px;padding:1px 7px;color:#fff;margin-bottom:4px}
+.jz-tag.fit{background:#b3541e}
+.jz-tag.cut{background:#6b8c59}
+.jz-name{font-size:13px;line-height:1.5}
+.jz-price{font-weight:700;margin-top:2px}
+.jz-note{font-size:12px;color:#666;margin-top:10px}
+</style></head><body><div id="wrap">
+<div class="jz-form">
+  <div class="jz-row">
+    <div class="jz-field"><label>長さ (mm)</label><input type="number" id="jz-l" placeholder="例: 600" min="0"></div>
+    <div class="jz-field"><label>幅 (mm)</label><input type="number" id="jz-w" placeholder="例: 200" min="0"></div>
+    <div class="jz-field"><label>厚み (mm)</label><input type="number" id="jz-t" placeholder="例: 30" min="0"></div>
+    <div class="jz-field"><label>樹種</label><select id="jz-s"><option value="">すべて</option></select></div>
+    <button class="jz-btn" id="jz-go">この寸法で探す</button>
+  </div>
+</div>
+<div class="jz-msg" id="jz-msg">在庫を読み込んでいます…</div>
+<div class="jz-grid" id="jz-out"></div>
+<p class="jz-note">※ 希望より大きい板は <strong>1カット無料・厚み調整無料</strong> でサイズを合わせられます。ご相談は各商品ページからどうぞ。<span id="jz-upd"></span></p>
+</div>
+<script>
+(function(){
+var DATA=[];
+var $=function(id){return document.getElementById(id)};
+function lo(v,v2){return v2?Math.min(v,v2):v}
+function hi(v,v2){return v2?Math.max(v,v2):v}
+function score(item,q){
+  var pen=0, short_=false, over=false;
+  [['l','l2'],['w','w2'],['t','t2']].forEach(function(k,idx){
+    var want=q[idx]; if(!want) return;
+    var have_lo=lo(item[k[0]],item[k[1]]), have_hi=hi(item[k[0]],item[k[1]]);
+    if(have_hi>=want && have_lo<=want){ pen+=0; }
+    else if(have_lo>want){ pen+=(have_lo-want)*0.3; over=true; }
+    else { var d=want-have_hi; if(d>want*0.15){pen=1e9;} pen+=d*3; short_=true; }
+  });
+  return {pen:pen, short_:short_, over:over};
+}
+function fitTag(r){
+  if(!r.short_ && !r.over) return '<span class="jz-tag fit">ぴったり</span>';
+  if(!r.short_) return '<span class="jz-tag cut">カット・調整でOK</span>';
+  return '';
+}
+function yen(n){return '¥'+n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function render(list){
+  $('jz-out').innerHTML=list.map(function(x){
+    return '<a class="jz-card" href="'+x.item.u+'" target="_blank" rel="noopener">'
+      +(x.item.i?'<img loading="lazy" src="'+x.item.i+'" alt="">':'')
+      +'<div class="jz-body">'+fitTag(x.r)
+      +'<div class="jz-name">'+x.item.c+' '+x.item.s+'<br>'+x.item.d+'</div>'
+      +'<div class="jz-price">'+yen(x.item.p)+'</div></div></a>';
+  }).join('');
+}
+function run(){
+  var q=[+$('jz-l').value||0, +$('jz-w').value||0, +$('jz-t').value||0];
+  var sp=$('jz-s').value;
+  var pool=DATA.filter(function(d){return !sp||d.s===sp});
+  if(!q[0]&&!q[1]&&!q[2]){
+    render(pool.slice(0,60).map(function(d){return {item:d,r:{short_:true,over:true}}}));
+    $('jz-msg').textContent='寸法が未入力なので'+(sp?sp+'の':'')+'在庫を表示しています（'+pool.length+'枚）。';
+    return;
+  }
+  var scored=pool.map(function(d){return {item:d,r:score(d,q)}})
+    .filter(function(x){return x.r.pen<1e9})
+    .sort(function(a,b){return a.r.pen-b.r.pen}).slice(0,30);
+  var exact=scored.filter(function(x){return !x.r.short_&&!x.r.over}).length;
+  var cuttable=scored.filter(function(x){return !x.r.short_}).length-exact;
+  var msg;
+  if(!scored.length){
+    msg='ご希望に近い板が見つかりませんでした。条件をゆるめるか、お問い合わせください。製材からのご相談も承ります。';
+  }else{
+    msg='近いサイズの板が'+scored.length+'枚見つかりました。';
+    if(exact)msg+='うち'+exact+'枚はほぼぴったりです。';
+    if(cuttable)msg+='大きめの'+cuttable+'枚は1カット無料・厚み調整無料でご希望サイズに合わせられます。';
+  }
+  $('jz-msg').textContent=msg;
+  render(scored);
+}
+fetch('https://res.cloudinary.com/nlwph1bi/raw/upload/junshin_size_search.json?t='+Date.now())
+ .then(function(r){return r.json()})
+ .then(function(j){
+   DATA=j.items||[];
+   var sel=$('jz-s');
+   Array.from(new Set(DATA.map(function(x){return x.s}).filter(Boolean))).sort().forEach(function(s){
+     var o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);
+   });
+   $('jz-upd').textContent=' 在庫データ更新日: '+(j.updated||'');
+   $('jz-msg').textContent='欲しいサイズを入れて「この寸法で探す」を押してください。現在'+DATA.length+'枚の板からお探しできます。空欄の項目は条件に使いません。';
+ })
+ .catch(function(){ $('jz-msg').textContent='在庫の読み込みに失敗しました。時間をおいて再読み込みしてください。'; });
+$('jz-go').addEventListener('click',run);
+})();
+</script></body></html>
