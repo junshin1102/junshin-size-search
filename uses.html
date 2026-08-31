@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用途から探す | Junshin -潤森-</title>
+<style>
+body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;font-size:16px;color:#222;background:#fff}
+#wrap{max-width:980px;margin:0 auto;padding:10px}
+.jz-msg{background:#fff;border-left:4px solid #6b8c59;padding:10px 14px;margin:10px 0 18px;line-height:1.7}
+.jz-toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.jz-toc a{background:#f4f6f1;border:1px solid #d7ddd0;border-radius:99px;padding:6px 14px;
+  font-size:13.5px;color:#2c4a2e;text-decoration:none}
+h2{font-size:19px;border-bottom:2px solid #6b8c59;padding-bottom:6px;margin:34px 0 6px}
+.lead{font-size:13.5px;color:#555;margin:0 0 12px;line-height:1.7}
+.jz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.jz-card{border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;background:#fff;text-decoration:none;color:inherit;display:block}
+.jz-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eee}
+.jz-card .jz-body{padding:8px 10px}
+.jz-name{font-size:13px;line-height:1.5}
+.jz-price{font-weight:700;margin-top:2px}
+.more{font-size:13px;margin:10px 0 0}
+.more button{background:#2c4a2e;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:14px;cursor:pointer}
+.jz-note{font-size:12px;color:#666;margin-top:26px}
+</style></head><body><div id="wrap">
+<div class="jz-msg" id="jz-msg">在庫を読み込んでいます…</div>
+<div class="jz-toc" id="jz-toc"></div>
+<div id="jz-out"></div>
+<p class="jz-note">※ 希望より大きい板は <strong>1カット無料・厚み調整無料</strong> でサイズを合わせられます。
+寸法で探したい方は <a href="https://jun-shin.info/size-search/">木材サイズ検索</a> をどうぞ。<span id="jz-upd"></span></p>
+</div>
+<script>
+var USES = [{"name": "テーブル・デスクの天板", "lead": "長さ900mm以上・厚み30mm以上の、天板向きのしっかりした板を集めました。脚を付ければダイニングテーブルやデスクに、そのまま置けばローテーブルにもなります。", "cond": {"l_min": 900, "w_min": 250, "t_min": 30}}, {"name": "カウンター・棚板", "lead": "長さのあるカウンター・棚板向きの板を集めました。壁付けの飾り棚やキッチンカウンターの天板におすすめです。", "cond": {"l_min": 900, "t_min": 20, "t_max": 40}}, {"name": "まな板・カッティングボード", "lead": "まな板・カッティングボードにちょうどよいサイズの板を集めました。ホオノキやイチョウなど刃当たりの柔らかい樹種は、包丁を傷めにくくおすすめです。", "cond": {"l_min": 300, "l_max": 650, "t_min": 20, "t_max": 45}}, {"name": "カトラリー・小物づくり", "lead": "スプーンやバターナイフ、コースターなどの小物づくりに向く、小ぶりで扱いやすい板を集めました。木工をはじめたばかりの方にもおすすめのサイズです。", "cond": {"l_max": 650, "t_max": 35}}, {"name": "看板・表札", "lead": "看板や表札、ウェルカムボードに向く板を集めました。木目のはっきりした樹種は文字を彫っても映えます。", "cond": {"l_min": 300, "l_max": 900, "t_min": 20}}, {"name": "花台・ディスプレイ台", "lead": "花器や盆栽、オブジェの下に敷く台に向く、厚みのある板を集めました。一枚置くだけで飾り付けの格が上がります。", "cond": {"l_min": 300, "l_max": 700, "t_min": 30}}];
+function lo(v,v2){return v2?Math.min(v,v2):v}
+function hi(v,v2){return v2?Math.max(v,v2):v}
+function match(c,it){
+  if(it.l==null) return false;
+  var l=it.l, w=hi(it.w,it.w2), t=hi(it.t,it.t2);
+  if(c.l_min&&l<c.l_min)return false;
+  if(c.l_max&&l>c.l_max)return false;
+  if(c.w_min&&(w||0)<c.w_min)return false;
+  if(c.t_min&&(t||0)<c.t_min)return false;
+  if(c.t_max&&(t||0)>c.t_max)return false;
+  return true;
+}
+function yen(n){return '¥'+n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function card(x){
+  return '<a class="jz-card" href="'+x.u+'" target="_blank" rel="noopener">'
+    +(x.i?'<img loading="lazy" src="'+x.i+'" alt="">':'')
+    +'<div class="jz-body"><div class="jz-name">'+x.c+' '+x.s+'<br>'+x.d+'</div>'
+    +'<div class="jz-price">'+yen(x.p)+'</div></div></a>';
+}
+fetch('https://res.cloudinary.com/nlwph1bi/raw/upload/junshin_size_search.json?t='+Date.now())
+ .then(function(r){return r.json()})
+ .then(function(j){
+   var DATA=j.items||[];
+   var toc=[], out=[];
+   USES.forEach(function(u,ui){
+     var hits=DATA.filter(function(d){return match(u.cond,d)});
+     toc.push('<a href="#use'+ui+'">'+u.name+'（'+hits.length+'）</a>');
+     var head='<h2 id="use'+ui+'">'+u.name+'　<small style="font-weight:400;font-size:13px;color:#666">'+hits.length+'枚</small></h2>'
+       +'<p class="lead">'+u.lead+'</p>';
+     var first=hits.slice(0,8).map(card).join('');
+     var rest=hits.slice(8).map(card).join('');
+     var body='<div class="jz-grid">'+first+'</div>';
+     if(rest){
+       body+='<div class="jz-grid" id="rest'+ui+'" style="display:none;margin-top:12px">'+rest+'</div>'
+         +'<p class="more"><button onclick="document.getElementById(\'rest'+ui+'\').style.display=\'grid\';this.parentNode.remove()">'
+         +'残り'+hits.slice(8).length+'枚をすべて見る</button></p>';
+     }
+     out.push(head+body);
+   });
+   document.getElementById('jz-toc').innerHTML=toc.join('');
+   document.getElementById('jz-out').innerHTML=out.join('');
+   document.getElementById('jz-upd').textContent=' 在庫データ更新日: '+(j.updated||'');
+   document.getElementById('jz-msg').textContent='使いみちから板を探せます。すべて一点物・在庫と自動連動しています。';
+ })
+ .catch(function(){document.getElementById('jz-msg').textContent='在庫の読み込みに失敗しました。時間をおいて再読み込みしてください。';});
+</script></body></html>
