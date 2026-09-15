@@ -103,7 +103,8 @@ fetch('https://res.cloudinary.com/nlwph1bi/raw/upload/junshin_size_search.json?t
      var o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);
    });
    $('jz-upd').textContent=' 在庫データ更新日: '+(j.updated||'');
-   $('jz-msg').textContent='欲しいサイズを入れて「この寸法で探す」を押してください。現在'+DATA.length+'枚の板からお探しできます。空欄の項目は条件に使いません。';
+   render(DATA.slice(0,24).map(function(d){return {item:d,r:{short_:true,over:true}}}));
+   $('jz-msg').textContent='欲しいサイズを入れて「この寸法で探す」を押してください。現在'+DATA.length+'枚の板からお探しできます。空欄の項目は条件に使いません。（下は在庫の一部です）';
  })
  .catch(function(){ $('jz-msg').textContent='在庫の読み込みに失敗しました。時間をおいて再読み込みしてください。'; });
 $('jz-go').addEventListener('click',run);
